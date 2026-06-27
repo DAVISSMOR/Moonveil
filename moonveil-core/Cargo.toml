@@ -12,3 +12,6 @@ toml = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 bincode = { workspace = true }
+uuid = { workspace = true }
+
+

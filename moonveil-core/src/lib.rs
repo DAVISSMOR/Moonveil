@@ -2,13 +2,23 @@ pub mod config;
 pub mod error;
 pub mod frame;
 pub mod packet;
+pub mod session;
+pub mod mux;
 pub mod transport;
+
 
 pub use config::Config;
 pub use error::{Error, FrameError, Result};
-pub use frame::{MoonveilFrame, decode_frame, encode_frame, FRAME_VERSION, HEADER_SIZE};
+pub use frame::{
+    decode_frame, encode_frame, MoonveilFrame, FRAME_VERSION, HEADER_SIZE,
+};
 pub use packet::Packet;
+pub use mux::{MuxError, Multiplexer};
+pub use session::{Session, SessionError, SessionState};
+
 pub use transport::{
     QuicTransport, TcpListener, TcpTransport, Transport, TransportError, TransportResult,
     UdpTransport,
 };
+
+

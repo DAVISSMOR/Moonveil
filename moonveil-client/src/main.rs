@@ -1,4 +1,4 @@
-use moonveil_core::{Config, Packet, TcpTransport, Transport};
+use moonveil_core::{Config, Session, TcpTransport};
 use tracing::{info, Level};
 use tracing_subscriber::EnvFilter;
 
@@ -13,13 +13,15 @@ async fn main() -> moonveil_core::TransportResult<()> {
 
     info!(%addr, "connecting via TcpTransport");
 
-    let transport: Box<dyn Transport> = Box::new(TcpTransport::new(&addr));
-    transport.connect().await?;
+    let transport = Box::new(TcpTransport::new(&addr));
+    let mut session = Session::new(transport).await;
 
-    let packet = Packet::new(1, b"hello moonveil");
-    info!(id = packet.id, payload = ?packet.payload_str(), "sending packet");
-    transport.send(packet).await?;
-    transport.close().await?;
+    info!(session_id = %session.id(), "session created");
+
+    let payload = b"hello moonveil".to_vec();
+    info!(payload = ?String::from_utf8_lossy(&payload), "sending payload");
+    session.send(payload).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    session.close().await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
     info!("packet sent, disconnecting");
     Ok(())
