@@ -1,4 +1,5 @@
 pub mod config;
+pub mod crypto;
 pub mod error;
 pub mod frame;
 pub mod packet;
@@ -8,6 +9,7 @@ pub mod transport;
 
 
 pub use config::Config;
+pub use crypto::{AesGcmCipher, Cipher, CryptoError, EncryptedTransport};
 pub use error::{Error, FrameError, Result};
 pub use frame::{
     decode_frame, encode_frame, MoonveilFrame, FRAME_VERSION, HEADER_SIZE,
@@ -20,5 +22,3 @@ pub use transport::{
     QuicTransport, TcpListener, TcpTransport, Transport, TransportError, TransportResult,
     UdpTransport,
 };
-
-
