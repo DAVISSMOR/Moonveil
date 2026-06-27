@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "moonveil-core",
+    "moonveil-client",
+    "moonveil-server",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+thiserror = "1"
+async-trait = "0.1"
+bincode = "1"

@@ -1,0 +1,15 @@
+[package]
+name = "moonveil-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "moonveil-client"
+path = "src/main.rs"
+
+[dependencies]
+moonveil-core = { path = "../moonveil-core" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
