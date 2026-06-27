@@ -89,7 +89,7 @@ pub fn decode_frame(bytes: &[u8]) -> Result<MoonveilFrame> {
 
     if bytes.len() != expected_len {
         return Err(FrameError::FrameDecodeError(format!(
-            "frame size mismatch: got {} bytes, expected {expected_len} (payload_length={payload_length})"
+            "frame size mismatch: got {actual} bytes, expected {expected_len} (payload_length={payload_length})"
         ))
         .into());
     }
