@@ -24,6 +24,7 @@ uuid = { version = "1", features = ["v4"] }
 
 aes-gcm = "0.10"
 rand = "0.8"
+tun2 = "3"
 
 quinn = "0.11"
 rustls = { version = "0.23", features = ["ring"] }

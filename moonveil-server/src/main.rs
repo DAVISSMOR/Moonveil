@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
-use moonveil_core::{MoonveilConfig, Multiplexer, Session, TcpListener};
+use moonveil_core::{
+    IpForwarder, AesGcmCipher, EncryptedTransport, MoonveilConfig, Multiplexer, Session,
+    TcpListener, TcpTransport, TunDevice,
+};
 use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber::EnvFilter;
@@ -17,24 +20,26 @@ struct Cli {
 enum Commands {
     Start,
     Sessions,
+    Tun { tun_name: String, tun_addr: String },
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    let config = MoonveilConfig::load_from_file(&cli.config)
-        .unwrap_or_default();
+    let config = MoonveilConfig::load_from_file(&cli.config).unwrap_or_default();
 
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::from_default_env()
-                .add_directive(match config.log.level.as_str() {
+            EnvFilter::from_default_env().add_directive(
+                match config.log.level.as_str() {
                     "debug" => Level::DEBUG,
                     "warn" => Level::WARN,
                     "error" => Level::ERROR,
                     _ => Level::INFO,
-                }.into())
+                }
+                .into(),
+            ),
         )
         .init();
 
@@ -72,6 +77,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Sessions => {
             let mux = Multiplexer::new().await;
             println!("active sessions: {}", mux.session_count().await);
+        }
+        Commands::Tun { tun_name, tun_addr } => {
+            #[cfg(target_os = "linux")]
+            {
+                let tun = TunDevice::new(&tun_name, 1500)?;
+                tun.set_ip_address(&tun_addr)?;
+                TunDevice::enable_ip_forward()?;
+                TunDevice::setup_nat("10.8.0.0/24")?;
+
+                let addr = config.addr();
+                info!(%addr, "tunnel listener");
+
+                let listener = TcpListener::bind(&addr).await?;
+
+                loop {
+                    let transport = listener.accept().await?;
+                    let session = Session::new(Box::new(transport)).await;
+                    let forwarder = IpForwarder::new(tun.clone(), session).await;
+                    tokio::spawn(async move {
+                        let _ = forwarder.run().await;
+                    });
+                }
+            }
+
+            #[cfg(not(target_os = "linux"))]
+            {
+                return Err(moonveil_core::error::Error::Config(
+                    "TUN interface is only supported on Linux".to_string(),
+                )
+                .into());
+            }
         }
     }
 

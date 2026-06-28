@@ -7,6 +7,7 @@ pub mod session;
 pub mod mux;
 pub mod transport;
 pub mod obfuscation;
+pub mod tun;
 
 
 pub use config::{Config, MoonveilConfig};
@@ -27,3 +28,5 @@ pub use transport::{
     QuicTransport, TcpListener, TcpTransport, Transport, TransportError, TransportResult,
     UdpTransport,
 };
+
+pub use tun::{IpForwarder, TunDevice};

@@ -16,6 +16,7 @@ uuid = { workspace = true }
 
 aes-gcm = { workspace = true }
 rand = { workspace = true }
+tun2 = { workspace = true }
 
 quinn = { workspace = true }
 rustls = { workspace = true }

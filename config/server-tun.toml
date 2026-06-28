@@ -1,0 +1,17 @@
+[server]
+host = "0.0.0.0"
+port = 7878
+
+[crypto]
+preshared_key = "0000000000000000000000000000000000000000000000000000000000000000"
+
+[transport]
+mode = "tcp"
+
+[tun]
+name = "moonveil0"
+address = "10.8.0.1/24"
+mtu = 1500
+
+[log]
+level = "info"
