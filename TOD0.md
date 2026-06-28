@@ -1,6 +1,0 @@
-- [ ] Implement QUIC transport in moonveil-core/src/transport/quic.rs (remove todo!)  
-- [ ] Add quinn + rustls deps to workspace Cargo.toml  
-- [ ] Create .github/workflows/ci.yml with test/clippy/fmt jobs + tag-based release matrix  
-- [ ] Update README.md roadmap row for v1.0 to “In progress” and add QUIC/cross-platform/GUI bullets  
-- [ ] Add CHANGELOG.md at workspace root with provided sections  
-- [ ] Run cargo test --workspace and fix any compile/test issues
