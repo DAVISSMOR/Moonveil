@@ -17,6 +17,10 @@ uuid = { workspace = true }
 aes-gcm = { workspace = true }
 rand = { workspace = true }
 
+quinn = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = "2.0"
+
 [[bench]]
 name = "benchmarks"
 harness = false
