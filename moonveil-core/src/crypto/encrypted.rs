@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use super::{Cipher, CryptoError};
+use super::Cipher;
 use crate::packet::Packet;
 use crate::transport::{Transport, TransportResult};
 

@@ -26,6 +26,18 @@ pub struct Session {
     state: Mutex<SessionState>,
     created_at: std::time::Instant,
     packet_counter: Arc<AtomicU64>,
+    bytes_sent: Arc<AtomicU64>,
+    bytes_recv: Arc<AtomicU64>,
+    packets_sent: Arc<AtomicU64>,
+    packets_recv: Arc<AtomicU64>,
+}
+
+pub struct SessionMetrics {
+    pub bytes_sent: u64,
+    pub bytes_recv: u64,
+    pub packets_sent: u64,
+    pub packets_recv: u64,
+    pub uptime: std::time::Duration,
 }
 
 impl std::fmt::Debug for Session {
@@ -45,6 +57,10 @@ impl Session {
             state: Mutex::new(SessionState::Active),
             created_at: std::time::Instant::now(),
             packet_counter: Arc::new(AtomicU64::new(0)),
+            bytes_sent: Arc::new(AtomicU64::new(0)),
+            bytes_recv: Arc::new(AtomicU64::new(0)),
+            packets_sent: Arc::new(AtomicU64::new(0)),
+            packets_recv: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -52,12 +68,22 @@ impl Session {
         let state = *self.state.lock().await;
         match state {
             SessionState::Active => {}
-            SessionState::Closing | SessionState::Closed => return Err(SessionError::SessionClosed),
-            SessionState::Connecting => return Err(SessionError::InvalidState(
-                "send not allowed while Connecting".to_string()
-            )),
+            SessionState::Closing | SessionState::Closed => {
+                return Err(SessionError::SessionClosed)
+            }
+            SessionState::Connecting => {
+                return Err(SessionError::InvalidState(
+                    "send not allowed while Connecting".to_string(),
+                ))
+            }
         }
         let id = self.packet_counter.fetch_add(1, Ordering::Relaxed) + 1;
+
+        self.packets_sent
+            .fetch_add(1, Ordering::Relaxed);
+        self.bytes_sent
+            .fetch_add(payload.len() as u64, Ordering::Relaxed);
+
         self.transport.send(Packet::new(id, payload)).await?;
         Ok(())
     }
@@ -66,15 +92,36 @@ impl Session {
         let state = *self.state.lock().await;
         match state {
             SessionState::Active => {}
-            SessionState::Closing | SessionState::Closed => return Err(SessionError::SessionClosed),
-            SessionState::Connecting => return Err(SessionError::InvalidState(
-                "recv not allowed while Connecting".to_string()
-            )),
+            SessionState::Closing | SessionState::Closed => {
+                return Err(SessionError::SessionClosed)
+            }
+            SessionState::Connecting => {
+                return Err(SessionError::InvalidState(
+                    "recv not allowed while Connecting".to_string(),
+                ))
+            }
         }
-        Ok(self.transport.recv().await?.payload)
+        let payload = self.transport.recv().await?.payload;
+
+        self.packets_recv
+            .fetch_add(1, Ordering::Relaxed);
+        self.bytes_recv
+            .fetch_add(payload.len() as u64, Ordering::Relaxed);
+
+        Ok(payload)
     }
 
     pub fn id(&self) -> Uuid { self.session_id }
+
+    pub fn metrics(&self) -> SessionMetrics {
+        SessionMetrics {
+            bytes_sent: self.bytes_sent.load(Ordering::Relaxed),
+            bytes_recv: self.bytes_recv.load(Ordering::Relaxed),
+            packets_sent: self.packets_sent.load(Ordering::Relaxed),
+            packets_recv: self.packets_recv.load(Ordering::Relaxed),
+            uptime: self.created_at.elapsed(),
+        }
+    }
 
     pub fn state(&self) -> &SessionState {
         let _ = self.created_at;
@@ -142,6 +189,10 @@ mod tests {
             state: tokio::sync::Mutex::new(SessionState::Active),
             created_at: std::time::Instant::now(),
             packet_counter: Arc::new(AtomicU64::new(0)),
+            bytes_sent: Arc::new(AtomicU64::new(0)),
+            bytes_recv: Arc::new(AtomicU64::new(0)),
+            packets_sent: Arc::new(AtomicU64::new(0)),
+            packets_recv: Arc::new(AtomicU64::new(0)),
         }
     }
 

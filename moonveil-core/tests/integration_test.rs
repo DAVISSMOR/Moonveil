@@ -1,4 +1,4 @@
-use moonveil_core::{MuxError, Multiplexer, Session, TcpTransport};
+use moonveil_core::{Multiplexer, Session, TcpTransport};
 
 #[tokio::test]
 async fn test_client_server_roundtrip() {

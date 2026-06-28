@@ -16,3 +16,10 @@ uuid = { workspace = true }
 
 aes-gcm = { workspace = true }
 rand = { workspace = true }
+
+[[bench]]
+name = "benchmarks"
+harness = false
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
