@@ -6,6 +6,7 @@ pub mod packet;
 pub mod session;
 pub mod mux;
 pub mod transport;
+pub mod obfuscation;
 
 
 pub use config::{Config, MoonveilConfig};
@@ -17,6 +18,10 @@ pub use frame::{
 pub use packet::Packet;
 pub use mux::{MuxError, Multiplexer};
 pub use session::{Session, SessionError, SessionState};
+
+pub use obfuscation::{
+    Obfuscator, ObfuscationError, PaddingObfuscator, XorObfuscator, ObfuscatedTransport,
+};
 
 pub use transport::{
     QuicTransport, TcpListener, TcpTransport, Transport, TransportError, TransportResult,
