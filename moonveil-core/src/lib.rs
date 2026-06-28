@@ -8,7 +8,7 @@ pub mod mux;
 pub mod transport;
 
 
-pub use config::Config;
+pub use config::{Config, MoonveilConfig};
 pub use crypto::{AesGcmCipher, Cipher, CryptoError, EncryptedTransport};
 pub use error::{Error, FrameError, Result};
 pub use frame::{

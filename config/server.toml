@@ -1,0 +1,16 @@
+# Moonveil server configuration
+
+[server]
+host = "127.0.0.1"
+port = 7878
+
+[crypto]
+# hex-encoded 32 bytes
+preshared_key = "0000000000000000000000000000000000000000000000000000000000000000"
+
+[transport]
+mode = "tcp"
+
+[log]
+level = "info"
+

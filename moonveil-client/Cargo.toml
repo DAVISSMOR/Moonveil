@@ -9,6 +9,7 @@ name = "moonveil-client"
 path = "src/main.rs"
 
 [dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
 moonveil-core = { path = "../moonveil-core" }
 tokio = { workspace = true }
 tracing = { workspace = true }
