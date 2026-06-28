@@ -1,91 +1,64 @@
-#[cfg(target_os = "linux")]
-mod imp {
-    use std::sync::Arc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::sync::Mutex;
+use crate::session::Session;
+use crate::transport::TransportResult;
+use crate::tun::TunDevice;
 
-    use tokio::sync::Mutex;
-
-    use crate::session::Session;
-    use crate::transport::{TransportError, TransportResult};
-    use crate::tun::TunDevice;
-
-    pub struct IpForwarder {
-        tun: Arc<TunDevice>,
-        session: Arc<Mutex<Session>>,
-        running: Arc<tokio::sync::atomic::AtomicBool>,
-    }
-
-    impl IpForwarder {
-        pub async fn new(tun: TunDevice, session: Session) -> Self {
-            Self {
-                tun: Arc::new(tun),
-                session: Arc::new(Mutex::new(session)),
-                running: Arc::new(tokio::sync::atomic::AtomicBool::new(true)),
-            }
-        }
-
-        pub async fn run(&self) -> TransportResult<()> {
-            let running_a = self.running.clone();
-            let tun_a = self.tun.clone();
-            let session_a = self.session.clone();
-
-            let task_a = tokio::spawn(async move {
-                while running_a.load(tokio::sync::atomic::Ordering::Relaxed) {
-                    let packet = tun_a.read_packet().await?;
-                    session_a.lock().await.send(packet).await?;
-                }
-                Ok::<(), TransportError>(())
-            });
-
-            let running_b = self.running.clone();
-            let tun_b = self.tun.clone();
-            let session_b = self.session.clone();
-
-            let task_b = tokio::spawn(async move {
-                while running_b.load(tokio::sync::atomic::Ordering::Relaxed) {
-                    let data = session_b.lock().await.recv().await?;
-                    tun_b.write_packet(&data).await?;
-                }
-                Ok::<(), TransportError>(())
-            });
-
-            let a = task_a.await.map_err(|e| {
-                TransportError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-            })?;
-            a?;
-
-            let b = task_b.await.map_err(|e| {
-                TransportError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-            })?;
-            b?;
-
-            Ok(())
-        }
-
-        pub fn stop(&self) {
-            self.running
-                .store(false, tokio::sync::atomic::Ordering::Relaxed);
-        }
-    }
+pub struct IpForwarder {
+    tun: Arc<TunDevice>,
+    session: Arc<Mutex<Session>>,
+    running: Arc<AtomicBool>,
 }
 
-#[cfg(target_os = "linux")]
-pub use imp::IpForwarder;
-
-#[cfg(not(target_os = "linux"))]
-pub struct IpForwarder;
-
-#[cfg(not(target_os = "linux"))]
 impl IpForwarder {
-    pub async fn new(_tun: crate::tun::TunDevice, _session: crate::session::Session) -> Self {
-        Self
+    pub async fn new(tun: TunDevice, session: Session) -> Self {
+        Self {
+            tun: Arc::new(tun),
+            session: Arc::new(Mutex::new(session)),
+            running: Arc::new(AtomicBool::new(true)),
+        }
     }
 
-    pub async fn run(&self) -> crate::transport::TransportResult<()> {
-        Err(crate::transport::TransportError::Io(std::io::Error::new(
-            std::io::ErrorKind::Unsupported,
-            "TUN interface is only supported on Linux",
-        )))
+    pub async fn run(&self) -> TransportResult<()> {
+        let running_a = self.running.clone();
+        let tun_a = self.tun.clone();
+        let session_a = self.session.clone();
+
+        let task_a = tokio::spawn(async move {
+            while running_a.load(Ordering::Relaxed) {
+                let packet = match tun_a.read_packet().await {
+                    Ok(p) => p,
+                    Err(e) => { eprintln!("tun read error: {e}"); break; }
+                };
+                if let Err(e) = session_a.lock().await.send(packet).await {
+                    eprintln!("session send error: {e}"); break;
+                }
+            }
+        });
+
+        let running_b = self.running.clone();
+        let tun_b = self.tun.clone();
+        let session_b = self.session.clone();
+
+        let task_b = tokio::spawn(async move {
+            while running_b.load(Ordering::Relaxed) {
+                let data = match session_b.lock().await.recv().await {
+                    Ok(d) => d,
+                    Err(e) => { eprintln!("session recv error: {e}"); break; }
+                };
+                if let Err(e) = tun_b.write_packet(&data).await {
+                    eprintln!("tun write error: {e}"); break;
+                }
+            }
+        });
+
+        let _ = task_a.await;
+        let _ = task_b.await;
+        Ok(())
     }
 
-    pub fn stop(&self) {}
+    pub fn stop(&self) {
+        self.running.store(false, Ordering::Relaxed);
+    }
 }
