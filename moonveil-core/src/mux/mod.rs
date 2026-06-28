@@ -63,3 +63,70 @@ impl Multiplexer {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::packet::Packet;
+    use crate::transport::{Transport, TransportError, TransportResult};
+
+    use async_trait::async_trait;
+
+    struct NoopTransport;
+
+    #[async_trait]
+    impl Transport for NoopTransport {
+        async fn send(&self, _packet: Packet) -> TransportResult<()> {
+            Ok(())
+        }
+
+        async fn recv(&self) -> TransportResult<Packet> {
+            Err(TransportError::NotConnected)
+        }
+
+        async fn connect(&self) -> TransportResult<()> {
+            Ok(())
+        }
+
+        async fn close(&self) -> TransportResult<()> {
+            Ok(())
+        }
+    }
+
+    async fn dummy_session() -> Session {
+        Session::new(Box::new(NoopTransport)).await
+    }
+
+    #[tokio::test]
+    async fn add_session_increases_count() {
+        let mux = Multiplexer::new().await;
+        assert_eq!(mux.session_count().await, 0);
+
+        let s = dummy_session().await;
+        let _id = mux.add_session(s).await;
+
+        assert_eq!(mux.session_count().await, 1);
+    }
+
+    #[tokio::test]
+    async fn remove_session_decreases_count() {
+        let mux = Multiplexer::new().await;
+        let s = dummy_session().await;
+        let id = mux.add_session(s).await;
+        assert_eq!(mux.session_count().await, 1);
+
+        mux.remove_session(id).await.unwrap();
+        assert_eq!(mux.session_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn remove_nonexistent_session_returns_session_not_found() {
+        let mux = Multiplexer::new().await;
+        let missing = Uuid::new_v4();
+
+        let err = mux.remove_session(missing).await.unwrap_err();
+        assert!(matches!(err, MuxError::SessionNotFound(id) if id == missing));
+    }
+}
+
+

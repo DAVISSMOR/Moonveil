@@ -23,3 +23,25 @@ impl Packet {
         std::str::from_utf8(&self.payload).ok()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn packet_bincode_roundtrip_preserves_fields() {
+        let pkt = Packet {
+            id: 42,
+            timestamp: 123456789,
+            payload: b"hello".to_vec(),
+        };
+
+        let bytes = bincode::serialize(&pkt).unwrap();
+        let decoded: Packet = bincode::deserialize(&bytes).unwrap();
+
+        assert_eq!(decoded.id, pkt.id);
+        assert_eq!(decoded.timestamp, pkt.timestamp);
+        assert_eq!(decoded.payload, pkt.payload);
+    }
+}
+

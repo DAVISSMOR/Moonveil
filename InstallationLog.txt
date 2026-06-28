@@ -1,0 +1,12 @@
+************************************* Invoked: Sun Jun 28 14:31:53 2026
+[0] Arguments: C:\Users\huawei\AppData\Local\Temp\WinGet\MSYS2.MSYS2.20260611\msys2-x86_64-20260611.exe, install, --confirm-command, --root, C:\msys64
+[5] Operations sanity check succeeded.
+[7] Warning: Cannot create lock file "C:\Users\huawei\AppData\Local\Temp\msys2-x86_64-202606111234865.lock": Процесс не может получить доступ к файлу, так как этот файл занят другим процессом.
+ (0x00000020)
+[38] Warning: Another msys2-x86_64-20260611 instance is already running. Wait until it finishes, close it, or restart your system.
+************************************* Invoked: Sun Jun 28 14:32:43 2026
+[0] Arguments: C:\Users\huawei\AppData\Local\Temp\WinGet\MSYS2.MSYS2.20260611\msys2-x86_64-20260611.exe, install, --confirm-command, --root, C:\msys64
+[7] Operations sanity check succeeded.
+[8] Warning: Cannot create lock file "C:\Users\huawei\AppData\Local\Temp\msys2-x86_64-202606111234865.lock": Процесс не может получить доступ к файлу, так как этот файл занят другим процессом.
+ (0x00000020)
+[33] Warning: Another msys2-x86_64-20260611 instance is already running. Wait until it finishes, close it, or restart your system.

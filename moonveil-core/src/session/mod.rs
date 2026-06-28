@@ -102,3 +102,65 @@ impl Session {
 
 #[allow(dead_code)]
 fn _transport_result_alias(_r: TransportResult<()>) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transport::TransportResult;
+    use std::sync::Arc;
+
+    struct DummyTransport {
+        closed: Arc<std::sync::Mutex<bool>>,
+        last_sent: Arc<std::sync::Mutex<Option<Vec<u8>>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Transport for DummyTransport {
+        async fn send(&self, packet: Packet) -> TransportResult<()> {
+            *self.last_sent.lock().unwrap() = Some(packet.payload);
+            Ok(())
+        }
+        async fn recv(&self) -> TransportResult<Packet> {
+            let payload = self.last_sent.lock().unwrap().take().unwrap_or_default();
+            Ok(Packet::new(1, payload))
+        }
+        async fn connect(&self) -> TransportResult<()> { Ok(()) }
+        async fn close(&self) -> TransportResult<()> {
+            *self.closed.lock().unwrap() = true;
+            Ok(())
+        }
+    }
+
+    fn make_session() -> Session {
+        let t = DummyTransport {
+            closed: Arc::new(std::sync::Mutex::new(false)),
+            last_sent: Arc::new(std::sync::Mutex::new(None)),
+        };
+        Session {
+            transport: Box::new(t),
+            session_id: Uuid::new_v4(),
+            state: tokio::sync::Mutex::new(SessionState::Active),
+            created_at: std::time::Instant::now(),
+            packet_counter: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    #[tokio::test]
+    async fn session_error_display_messages() {
+        assert_eq!(SessionError::SessionClosed.to_string(), "session is closed");
+        assert_eq!(
+            SessionError::InvalidState("bad".to_string()).to_string(),
+            "invalid session state: bad"
+        );
+    }
+
+    #[tokio::test]
+    async fn session_close_transitions_to_closed() {
+        let mut session = make_session();
+        assert_eq!(*session.state(), SessionState::Active);
+        session.close().await.unwrap();
+        assert_eq!(*session.state(), SessionState::Closed);
+        let err = session.close().await.unwrap_err();
+        assert!(matches!(err, SessionError::SessionClosed));
+    }
+}
