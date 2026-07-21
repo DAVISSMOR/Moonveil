@@ -1,3 +1,4 @@
+use std::os::fd::FromRawFd;
 use crate::transport::{TransportError, TransportResult};
 
 #[cfg(target_os = "linux")]
@@ -22,13 +23,13 @@ impl TunDevice {
 impl TunDevice {
     pub fn new(name: &str, mtu: u16) -> TransportResult<Self> {
         let mut config = tun2::Configuration::default();
-        config.name(name).mtu(mtu as u16).up();
+        config.tun_name(name).mtu(mtu as u16).up();
 
         let dev = tun2::create(&config).map_err(|e| {
             TransportError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
         })?;
 
-        use std::os::fd::{IntoRawFd, FromRawFd};
+        use std::os::fd::IntoRawFd;
         let raw_fd = dev.into_raw_fd();
         let owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(raw_fd) };
 

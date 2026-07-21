@@ -5,6 +5,7 @@ use tokio::net::UdpSocket;
 use crate::packet::Packet;
 use crate::transport::{Transport, TransportError, TransportResult};
 
+#[allow(dead_code)]
 pub struct UdpTransport {
     socket: std::sync::Arc<UdpSocket>,
     peer_addr: SocketAddr,

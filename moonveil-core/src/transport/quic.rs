@@ -6,6 +6,7 @@ use crate::transport::{Transport, TransportError, TransportResult};
 
 /// QUIC transport (not yet implemented — returns NotConnected).
 /// Full QUIC support is tracked in RFC-0004.
+#[allow(dead_code)]
 pub struct QuicTransport {
     peer_addr: SocketAddr,
 }

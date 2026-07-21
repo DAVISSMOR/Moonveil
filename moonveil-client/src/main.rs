@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tun.set_ip_address(&tun_addr)?;
 
                 std::process::Command::new("ip")
-                    .args(["route", "add", "default", "dev", &tun_name])
+                    .args(["route", "replace", "default", "dev", &tun_name])
                     .status()?;
 
                 let key = decode_key_hex_32(&config.crypto.preshared_key)?;
