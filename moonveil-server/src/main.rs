@@ -56,7 +56,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mux = Arc::clone(&mux);
 
                 tokio::spawn(async move {
-                    let session = Session::new(Box::new(transport)).await;
+                    let session = match Session::try_new(Box::new(transport)).await {
+                        Ok(session) => session,
+                        Err(error) => {
+                            info!(error = %error, "session setup failed");
+                            return;
+                        }
+                    };
                     let id = mux.add_session(session).await;
                     info!(%id, "session connected");
 
@@ -81,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Tun { tun_name, tun_addr } => {
             #[cfg(target_os = "linux")]
             {
-                let tun = TunDevice::new(&tun_name, 1500)?;
+                let tun = Arc::new(TunDevice::new(&tun_name, 1500)?);
                 tun.set_ip_address(&tun_addr)?;
                 TunDevice::enable_ip_forward()?;
                 TunDevice::setup_nat("10.8.0.0/24")?;
@@ -93,8 +99,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 loop {
                     let transport = listener.accept().await?;
-                    let session = Session::new(Box::new(transport)).await;
-                    let forwarder = IpForwarder::new(tun.clone(), session).await;
+                    let session = Session::try_new(Box::new(transport)).await?;
+                    let forwarder = IpForwarder::new(Arc::clone(&tun), session).await;
                     tokio::spawn(async move {
                         let _ = forwarder.run().await;
                     });

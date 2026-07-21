@@ -49,9 +49,12 @@ impl std::fmt::Debug for Session {
 }
 
 impl Session {
-    pub async fn new(transport: Box<dyn Transport + Send + Sync>) -> Self {
-        let _ = transport.connect().await;
-        Self {
+    pub async fn try_new(
+        transport: Box<dyn Transport + Send + Sync>,
+    ) -> Result<Self, SessionError> {
+        transport.connect().await?;
+
+        Ok(Self {
             transport,
             session_id: Uuid::new_v4(),
             state: Mutex::new(SessionState::Active),
@@ -61,7 +64,13 @@ impl Session {
             bytes_recv: Arc::new(AtomicU64::new(0)),
             packets_sent: Arc::new(AtomicU64::new(0)),
             packets_recv: Arc::new(AtomicU64::new(0)),
-        }
+        })
+    }
+
+    pub async fn new(transport: Box<dyn Transport + Send + Sync>) -> Self {
+        Self::try_new(transport)
+            .await
+            .expect("transport connect failed in Session::new; use Session::try_new to handle errors")
     }
 
     pub async fn send(&self, payload: Vec<u8>) -> Result<(), SessionError> {

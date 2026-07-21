@@ -1,18 +1,12 @@
 use async_trait::async_trait;
 use std::net::SocketAddr;
 
-use quinn::Endpoint;
-
 use crate::packet::Packet;
 use crate::transport::{Transport, TransportError, TransportResult};
 
-/// QUIC transport (currently a compile-safe stub).
-///
-/// This placeholder keeps the project building and preserves the required
-/// struct fields. Full QUIC send/recv implementation is not wired yet.
+/// QUIC transport (not yet implemented — returns NotConnected).
+/// Full QUIC support is tracked in RFC-0004.
 pub struct QuicTransport {
-    endpoint: Endpoint,
-    connection: Option<quinn::Connection>,
     peer_addr: SocketAddr,
 }
 
@@ -26,15 +20,7 @@ impl QuicTransport {
             TransportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
         })?;
 
-        // Unsafe placeholder: QUIC is not exercised by current tests, so we avoid
-        // binding QUIC endpoints with Quinn API specifics that vary by version.
-        let endpoint = unsafe { std::mem::MaybeUninit::<Endpoint>::uninit().assume_init() };
-
-        Ok(Self {
-            endpoint,
-            connection: None,
-            peer_addr,
-        })
+        Ok(Self { peer_addr })
     }
 }
 

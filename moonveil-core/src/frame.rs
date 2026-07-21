@@ -74,10 +74,22 @@ pub fn decode_frame(bytes: &[u8]) -> Result<MoonveilFrame> {
     }
 
     let flags = bytes[1];
-    let stream_id = u32::from_le_bytes(bytes[2..6].try_into().unwrap());
-    let packet_id = u64::from_le_bytes(bytes[6..14].try_into().unwrap());
-    let timestamp = u128::from_le_bytes(bytes[14..30].try_into().unwrap());
-    let payload_length = u32::from_le_bytes(bytes[30..34].try_into().unwrap());
+    let stream_id = u32::from_le_bytes(
+        bytes[2..6].try_into()
+            .map_err(|_| FrameError::FrameDecodeError("invalid stream_id bytes".into()))?
+    );
+    let packet_id = u64::from_le_bytes(
+        bytes[6..14].try_into()
+            .map_err(|_| FrameError::FrameDecodeError("invalid packet_id bytes".into()))?
+    );
+    let timestamp = u128::from_le_bytes(
+        bytes[14..30].try_into()
+            .map_err(|_| FrameError::FrameDecodeError("invalid timestamp bytes".into()))?
+    );
+    let payload_length = u32::from_le_bytes(
+        bytes[30..34].try_into()
+            .map_err(|_| FrameError::FrameDecodeError("invalid payload_length bytes".into()))?
+    );
 
     let payload_end = HEADER_SIZE
         .checked_add(payload_length as usize)
@@ -95,7 +107,10 @@ pub fn decode_frame(bytes: &[u8]) -> Result<MoonveilFrame> {
     }
 
     let payload = bytes[HEADER_SIZE..payload_end].to_vec();
-    let checksum = u32::from_le_bytes(bytes[checksum_offset..expected_len].try_into().unwrap());
+    let checksum = u32::from_le_bytes(
+        bytes[checksum_offset..expected_len].try_into()
+            .map_err(|_| FrameError::FrameDecodeError("invalid checksum bytes".into()))?
+    );
 
     let computed = crc32(&bytes[..checksum_offset]);
     if computed != checksum {

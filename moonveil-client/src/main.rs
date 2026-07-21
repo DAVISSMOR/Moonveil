@@ -3,6 +3,7 @@ use moonveil_core::{
     AesGcmCipher, EncryptedTransport, IpForwarder, MoonveilConfig, Session, TcpTransport,
     TunDevice,
 };
+use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber::EnvFilter;
 
@@ -76,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             info!(%addr, "connecting");
 
             let transport = Box::new(TcpTransport::new(&addr));
-            let mut session = Session::new(transport).await;
+            let mut session = Session::try_new(transport).await?;
             info!(session_id = %session.id(), "session created");
 
             session
@@ -101,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         } => {
             #[cfg(target_os = "linux")]
             {
-                let tun = TunDevice::new(&tun_name, 1500)?;
+                let tun = Arc::new(TunDevice::new(&tun_name, 1500)?);
                 tun.set_ip_address(&tun_addr)?;
 
                 std::process::Command::new("ip")
@@ -113,8 +114,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let transport = Box::new(TcpTransport::new(&server));
                 let encrypted_transport = EncryptedTransport::new(transport, cipher);
 
-                let session = Session::new(Box::new(encrypted_transport)).await;
-                let forwarder = IpForwarder::new(tun, session).await;
+                let session = Session::try_new(Box::new(encrypted_transport)).await?;
+                let forwarder = IpForwarder::new(Arc::clone(&tun), session).await;
                 forwarder.run().await?;
             }
 
