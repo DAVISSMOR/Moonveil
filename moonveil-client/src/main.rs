@@ -105,16 +105,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let tun = Arc::new(TunDevice::new(&tun_name, 1500)?);
                 tun.set_ip_address(&tun_addr)?;
 
-                std::process::Command::new("ip")
-                    .args(["route", "replace", "default", "dev", &tun_name])
-                    .status()?;
-
                 let key = decode_key_hex_32(&config.crypto.preshared_key)?;
                 let cipher = Box::new(AesGcmCipher::new(key));
                 let transport = Box::new(TcpTransport::new(&server));
                 let encrypted_transport = EncryptedTransport::new(transport, cipher);
 
                 let session = Session::try_new(Box::new(encrypted_transport)).await?;
+
+                // Replace default route only AFTER the tunnel connection is established,
+                // so the client can still reach the server via the original route.
+                std::process::Command::new("ip")
+                    .args(["route", "replace", "default", "dev", &tun_name])
+                    .status()?;
+
                 let forwarder = IpForwarder::new(Arc::clone(&tun), session).await;
                 forwarder.run().await?;
             }
