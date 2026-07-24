@@ -38,50 +38,39 @@ impl TunDevice {
 
     pub async fn read_packet(&self) -> TransportResult<Vec<u8>> {
         use std::os::fd::AsRawFd;
-        use tokio::io::unix::AsyncFd;
         use std::io::Read;
 
         let raw = self.fd.as_raw_fd();
-        let afd = AsyncFd::new(raw).map_err(|e| TransportError::Io(e))?;
-
-        loop {
-            let mut guard = afd.readable().await.map_err(|e| TransportError::Io(e))?;
+        tokio::task::spawn_blocking(move || {
+            let mut f = unsafe { std::fs::File::from_raw_fd(raw) };
             let mut buf = vec![0u8; 65535];
-            match guard.try_io(|_| {
-                let mut f = unsafe { std::fs::File::from_raw_fd(raw) };
-                let r = f.read(&mut buf);
-                std::mem::forget(f);
-                r
-            }) {
-                Ok(Ok(n)) => { buf.truncate(n); return Ok(buf); }
-                Ok(Err(e)) => return Err(TransportError::Io(e)),
-                Err(_) => continue,
-            }
-        }
+            let result = f.read(&mut buf).map(|n| {
+                buf.truncate(n);
+                buf
+            });
+            std::mem::forget(f);
+            result
+        })
+        .await
+        .map_err(|e| TransportError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?
+        .map_err(TransportError::Io)
     }
 
     pub async fn write_packet(&self, data: &[u8]) -> TransportResult<()> {
         use std::os::fd::AsRawFd;
-        use tokio::io::unix::AsyncFd;
         use std::io::Write;
 
         let raw = self.fd.as_raw_fd();
-        let afd = AsyncFd::new(raw).map_err(|e| TransportError::Io(e))?;
         let data = data.to_vec();
-
-        loop {
-            let mut guard = afd.writable().await.map_err(|e| TransportError::Io(e))?;
-            match guard.try_io(|_| {
-                let mut f = unsafe { std::fs::File::from_raw_fd(raw) };
-                let r = f.write_all(&data);
-                std::mem::forget(f);
-                r
-            }) {
-                Ok(Ok(())) => return Ok(()),
-                Ok(Err(e)) => return Err(TransportError::Io(e)),
-                Err(_) => continue,
-            }
-        }
+        tokio::task::spawn_blocking(move || {
+            let mut f = unsafe { std::fs::File::from_raw_fd(raw) };
+            let result = f.write_all(&data);
+            std::mem::forget(f);
+            result
+        })
+        .await
+        .map_err(|e| TransportError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?
+        .map_err(TransportError::Io)
     }
 
     pub fn set_ip_address(&self, cidr: &str) -> TransportResult<()> {
