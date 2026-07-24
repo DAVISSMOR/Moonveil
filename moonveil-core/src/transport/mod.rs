@@ -32,6 +32,9 @@ pub enum TransportError {
 
     #[error("packet too large")]
     PacketTooLarge,
+
+    #[error("connection timed out after {0} seconds")]
+    ConnectTimeout(u64),
 }
 
 /// Async transport abstraction for sending and receiving packets.

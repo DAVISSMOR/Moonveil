@@ -92,6 +92,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 TunDevice::enable_ip_forward()?;
                 TunDevice::setup_nat("10.8.0.0/24")?;
 
+                // Spawn ctrl_c handler to clean up TUN interface and iptables NAT rule.
+                let tun_name_for_cleanup = tun_name.clone();
+                tokio::spawn(async move {
+                    let _ = tokio::signal::ctrl_c().await;
+                    tracing::info!("received ctrl-c, cleaning up server tun");
+                    let _ = std::process::Command::new("ip")
+                        .args(["link", "delete", &tun_name_for_cleanup])
+                        .status();
+                    let _ = std::process::Command::new("iptables")
+                        .args(["-t", "nat", "-D", "POSTROUTING", "-s", "10.8.0.0/24", "-j", "MASQUERADE"])
+                        .status();
+                    std::process::exit(0);
+                });
+
                 let addr = config.addr();
                 info!(%addr, "tunnel listener");
 
@@ -99,10 +113,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 loop {
                     let transport = listener.accept().await?;
-                    let session = Session::try_new(Box::new(transport)).await?;
+                    let session = match Session::try_new(Box::new(transport)).await {
+                        Ok(s) => s,
+                        Err(error) => {
+                            tracing::warn!(error = %error, "session setup failed");
+                            continue;
+                        }
+                    };
+                    let session_id = session.id();
                     let forwarder = IpForwarder::new(Arc::clone(&tun), session).await;
+
                     tokio::spawn(async move {
-                        let _ = forwarder.run().await;
+                        tracing::info!(%session_id, "client connected");
+
+                        // Spawn a periodic heartbeat logger (every 30 seconds)
+                        // while the tunnel is active.
+                        let metrics_handle = tokio::spawn(async move {
+                            loop {
+                                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                                tracing::info!(%session_id, "tunnel active");
+                            }
+                        });
+
+                        let result = forwarder.run().await;
+
+                        // Stop the metrics logger.
+                        metrics_handle.abort();
+
+                        match result {
+                            Ok(()) => tracing::info!(%session_id, "client disconnected"),
+                            Err(e) => tracing::warn!(%session_id, error = %e, "client disconnected with error"),
+                        }
                     });
                 }
             }

@@ -66,7 +66,15 @@ impl Transport for TcpTransport {
             .addr
             .as_ref()
             .ok_or(TransportError::NoAddress)?;
-        let stream = TcpStream::connect(addr.as_str()).await?;
+
+        let timeout_secs = 10;
+        let stream = tokio::time::timeout(
+            std::time::Duration::from_secs(timeout_secs),
+            TcpStream::connect(addr.as_str()),
+        )
+        .await
+        .map_err(|_| TransportError::ConnectTimeout(timeout_secs))??;
+
         *guard = Some(stream);
         Ok(())
     }
